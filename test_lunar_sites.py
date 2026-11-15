@@ -39,6 +39,32 @@ def test_apollo_11_matches_the_nssdca_lunar_module_row():
     assert site.source_url == "https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html"
 
 
+# Lunar Module rows of the NSSDCA table (planetocentric ME/PA, degrees N / degrees E),
+# typed from https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html (updated 2017).
+NSSDCA_APOLLO_LM_ROWS = {
+    "apollo_11_lm": (0.67416, 23.47314),
+    "apollo_12_lm": (-3.0128, -23.4219),
+    "apollo_14_lm": (-3.64589, -17.47194),
+    "apollo_15_lm": (26.13239, 3.63330),
+    "apollo_16_lm": (-8.9734, 15.5011),
+    "apollo_17_lm": (20.1911, 30.7723),
+}
+
+
+@pytest.mark.parametrize("site_id, expected", sorted(NSSDCA_APOLLO_LM_ROWS.items()))
+def test_apollo_sites_match_the_nssdca_lunar_module_rows(site_id, expected):
+    site = get_site(site_id)
+    assert (site.latitude_deg, site.longitude_deg_east) == expected
+    assert site.altitude_km == 0.0
+    assert site.category == "Historical landing site"
+    assert site.status.startswith("Landed (crewed")
+    assert site.source_url == "https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html"
+
+
+def test_catalogue_holds_exactly_the_six_apollo_landings_for_now():
+    assert set(LUNAR_SITES) == set(NSSDCA_APOLLO_LM_ROWS)
+
+
 def test_unknown_site_id_gives_a_readable_error():
     with pytest.raises(KeyError, match="apollo_11_lm"):
         get_site("not_a_site")

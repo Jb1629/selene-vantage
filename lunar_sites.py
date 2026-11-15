@@ -81,6 +81,50 @@ _ZERO_ALTITUDE_BASIS = (
     "local terrain elevation is not modelled"
 )
 
+_NSSDCA_APOLLO_SOURCE = (
+    "NASA NSSDCA, Apollo Landing Site Coordinates (Lunar Module row; "
+    "from LRO images, Wagner et al., Icarus 283, 92-103, 2017)"
+)
+
+
+_ROVER_NOTE = (
+    " The crew also drove a Lunar Roving Vehicle; this entry is the landing point, "
+    "not the rover traverse."
+)
+
+
+def _apollo_lunar_module(
+    number: int,
+    landed: str,
+    latitude_deg: float,
+    longitude_deg_east: float,
+    decimals: int,
+    other_points: str,
+    rover_note: str = "",
+) -> CatalogueSite:
+    """Apollo Lunar Module entry from the NSSDCA table, values exactly as published."""
+    return CatalogueSite(
+        site_id=f"apollo_{number}_lm",
+        name=f"Apollo {number} - Lunar Module",
+        category="Historical landing site",
+        status=f"Landed (crewed, {landed})",
+        latitude_deg=latitude_deg,
+        longitude_deg_east=longitude_deg_east,
+        altitude_km=0.0,
+        altitude_basis=_ZERO_ALTITUDE_BASIS,
+        coordinate_system=_NSSDCA_APOLLO_FRAME,
+        source_name=_NSSDCA_APOLLO_SOURCE,
+        source_url=_NSSDCA_APOLLO_URL,
+        source_updated="Page last updated 06 March 2017",
+        notes=(
+            "Position of the Lunar Module descent stage, from the Lunar Module row "
+            f"of the NSSDCA table. The same table also lists {other_points}; those are "
+            f"not used here. Published to {decimals} decimal places; no uncertainty is "
+            "stated on the source page." + rover_note
+        ),
+    )
+
+
 _SITES = [
     CatalogueSite(
         site_id="apollo_11_lm",
@@ -106,6 +150,24 @@ _SITES = [
             "differ by about 5 m, while the pre-flight map value used on Wikipedia "
             "(0.6875 N, 23.4333 E) is about 1.3 km away."
         ),
+    ),
+    _apollo_lunar_module(12, "Nov 1969", -3.0128, -23.4219, 4, "an ALSEP position"),
+    _apollo_lunar_module(
+        14, "Feb 1971", -3.64589, -17.47194, 5,
+        "retroreflector (LRRR) and ALSEP positions",
+    ),
+    _apollo_lunar_module(
+        15, "Jul 1971", 26.13239, 3.63330, 5,
+        "retroreflector (LRRR) and ALSEP positions",
+        rover_note=_ROVER_NOTE,
+    ),
+    _apollo_lunar_module(
+        16, "Apr 1972", -8.9734, 15.5011, 4, "an ALSEP position",
+        rover_note=_ROVER_NOTE,
+    ),
+    _apollo_lunar_module(
+        17, "Dec 1972", 20.1911, 30.7723, 4, "an ALSEP position",
+        rover_note=_ROVER_NOTE,
     ),
 ]
 
