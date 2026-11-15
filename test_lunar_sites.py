@@ -61,8 +61,67 @@ def test_apollo_sites_match_the_nssdca_lunar_module_rows(site_id, expected):
     assert site.source_url == "https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html"
 
 
-def test_catalogue_holds_exactly_the_six_apollo_landings_for_now():
-    assert set(LUNAR_SITES) == set(NSSDCA_APOLLO_LM_ROWS)
+# NSSDCA table: actual CLPS landing positions, degrees N / degrees E.
+NSSDCA_CLPS_LANDED_ROWS = {
+    "clps_im1_odysseus": (-80.13, 1.44),
+    "clps_im2_athena": (-84.7906, 29.1957),
+    "clps_blue_ghost_1": (18.562, 61.810),
+}
+
+
+@pytest.mark.parametrize("site_id, expected", sorted(NSSDCA_CLPS_LANDED_ROWS.items()))
+def test_completed_clps_sites_match_the_nssdca_lander_rows(site_id, expected):
+    site = get_site(site_id)
+    assert (site.latitude_deg, site.longitude_deg_east) == expected
+    assert site.altitude_km == 0.0
+    assert site.category == "Historical CLPS landing site"
+    assert site.status.startswith("Landed (uncrewed")
+    assert site.source_url == (
+        "https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_artifact_impacts.html"
+    )
+
+
+# USGS/IAU Gazetteer feature centres, planetographic coordinates, +East, -180..180.
+PLANNED_CLPS_FEATURE_CENTRES = {
+    "clps_griffin1_nobile_centre": (-85.28, 53.27),
+    "clps_im3_reiner_gamma_centre": (7.39, -58.96),
+    "clps_im4_mons_mouton_centre": (-84.60, 31.00),
+    "clps_blue_ghost2_nassau_centre": (-24.91, 177.34),
+}
+
+
+@pytest.mark.parametrize("site_id, expected", sorted(PLANNED_CLPS_FEATURE_CENTRES.items()))
+def test_planned_clps_entries_match_usgs_feature_centres_and_are_not_landings(
+    site_id, expected
+):
+    site = get_site(site_id)
+    assert (site.latitude_deg, site.longitude_deg_east) == expected
+    assert site.altitude_km == 0.0
+    assert site.category == "Planned CLPS destination region"
+    assert site.status.startswith("Planned (")
+    assert "feature centre" in site.notes.lower()
+    assert "not a precise lander coordinate" in site.notes.lower()
+    assert site.source_url.startswith("https://planetarynames.wr.usgs.gov/Feature/")
+    assert "planetographic" in site.coordinate_system.lower()
+
+
+def test_catalogue_contains_all_apollo_and_clps_entries():
+    expected_ids = (
+        set(NSSDCA_APOLLO_LM_ROWS)
+        | set(NSSDCA_CLPS_LANDED_ROWS)
+        | set(PLANNED_CLPS_FEATURE_CENTRES)
+    )
+    assert set(LUNAR_SITES) == expected_ids
+
+
+def test_athena_landing_point_and_mons_mouton_feature_centre_are_distinct():
+    athena = get_site("clps_im2_athena")
+    mons_mouton = get_site("clps_im4_mons_mouton_centre")
+    assert athena.coordinates[:2] == (-84.7906, 29.1957)
+    assert mons_mouton.coordinates[:2] == (-84.60, 31.00)
+    assert athena.coordinates[:2] != mons_mouton.coordinates[:2]
+    assert "actual athena lander position" in athena.notes.lower()
+    assert "not a second known landing point" in mons_mouton.notes
 
 
 def test_unknown_site_id_gives_a_readable_error():
@@ -115,7 +174,6 @@ APOLLO_11_HORIZONS_RUN = {
     "lat_deg": 0.67416,
     "alt_km": 0.0,
 }
-
 APOLLO_11_SUN_AZ = [91.402851, 91.403075, 91.403429, 91.403911,
                     91.404520, 91.405254, 91.406113]
 APOLLO_11_SUN_EL = [-25.344713, -24.836833, -24.328961, -23.821097,
@@ -167,13 +225,11 @@ def test_apollo_11_validated_rows_give_earth_only_visibility():
         find_visibility_windows(data, "earth"),
     )
     sun, earth, both = m["sun"], m["earth"], m["both"]
-
     assert abs(m["period_hours"] - 6.0) < 1e-9
 
     # Sun below the horizon for the whole period, rising but still negative.
     assert sun["total_hours"] == 0.0 and sun["n_windows"] == 0
     assert abs(sun["longest_gap_hours"] - 6.0) < 1e-9 and sun["longest_gap_truncated"]
-
     # Earth above the horizon for the whole period.
     assert abs(earth["total_hours"] - 6.0) < 1e-9
     assert abs(earth["fraction_of_period"] - 1.0) < 1e-9
