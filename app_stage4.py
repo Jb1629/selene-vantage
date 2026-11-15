@@ -9,7 +9,7 @@ from lunar_sites import LUNAR_SITES
 
 
 st.set_page_config(
-    page_title="Lunar Mission Browser",
+    page_title="Selene Vantage",
     page_icon="🌕",
     layout="wide",
 )
@@ -29,7 +29,7 @@ def run_analysis(lat, lon, alt, start, end, step_minutes):
     )
 
 
-st.title("🌕 Lunar Mission Browser")
+st.title("🌕 Selene Vantage")
 st.write(
     "Compare solar illumination and direct Earth visibility "
     "at two locations on the lunar surface."
