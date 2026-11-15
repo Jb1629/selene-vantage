@@ -5,6 +5,7 @@ import streamlit as st
 
 from lunar_analysis import analyse_lunar_site
 from lunar_metrics import compare_sites, metrics_table
+from lunar_sites import LUNAR_SITES
 
 
 st.set_page_config(
@@ -40,31 +41,86 @@ st.caption("Ephemeris source: NASA/JPL Horizons | Times in UTC")
 # SIDEBAR: OBSERVER LOCATIONS
 # ---------------------------------------------------------
 
-st.sidebar.header("Site A")
+CUSTOM_SITE = "custom"
 
-a_lat = st.sidebar.number_input(
-    "Site A latitude (°)",
-    min_value=-90.0,
-    max_value=90.0,
-    value=-89.5,
-    step=0.1,
-)
 
-a_lon = st.sidebar.number_input(
-    "Site A east longitude (°)",
-    min_value=-360.0,
-    max_value=360.0,
-    value=0.0,
-    step=0.1,
-    key="a_lon",
-)
+def site_label(choice):
+    """Display name for a dropdown value or a stored choice."""
+    return "Custom coordinates" if choice == CUSTOM_SITE else LUNAR_SITES[choice].name
 
-a_alt = st.sidebar.number_input(
-    "Site A altitude (km)",
-    value=0.0,
-    step=0.1,
-    key="a_alt",
-)
+
+def location_inputs(prefix, title, default_lat, default_lon, default_alt):
+    """Sidebar controls for one site; returns (choice, lat, lon_east, alt_km).
+
+    A catalogue site fills in the coordinates and locks them, so the numbers shown
+    can never disagree with the named site. Choose "Custom coordinates" to type
+    any latitude, east longitude and altitude.
+    """
+    st.sidebar.header(title)
+
+    choice = st.sidebar.selectbox(
+        f"{title} location",
+        options=[CUSTOM_SITE, *LUNAR_SITES],
+        format_func=site_label,
+        key=f"{prefix}_choice",
+    )
+
+    if choice == CUSTOM_SITE:
+        lat = st.sidebar.number_input(
+            f"{title} latitude (°)",
+            min_value=-90.0,
+            max_value=90.0,
+            value=default_lat,
+            step=0.1,
+            key=f"{prefix}_lat",
+        )
+        lon = st.sidebar.number_input(
+            f"{title} east longitude (°)",
+            min_value=-360.0,
+            max_value=360.0,
+            value=default_lon,
+            step=0.1,
+            key=f"{prefix}_lon",
+        )
+        alt = st.sidebar.number_input(
+            f"{title} altitude (km)",
+            value=default_alt,
+            step=0.1,
+            key=f"{prefix}_alt",
+        )
+    else:
+        # Keys include the site id so the locked values refresh when the selection changes.
+        site = LUNAR_SITES[choice]
+        lat = st.sidebar.number_input(
+            f"{title} latitude (°)",
+            value=site.latitude_deg,
+            format="%.5f",
+            disabled=True,
+            key=f"{prefix}_lat_{choice}",
+        )
+        lon = st.sidebar.number_input(
+            f"{title} east longitude (°)",
+            value=site.longitude_deg_east,
+            format="%.5f",
+            disabled=True,
+            key=f"{prefix}_lon_{choice}",
+        )
+        alt = st.sidebar.number_input(
+            f"{title} altitude (km)",
+            value=site.altitude_km,
+            format="%.3f",
+            disabled=True,
+            key=f"{prefix}_alt_{choice}",
+        )
+        st.sidebar.caption(f"{site.category} · {site.status}")
+        st.sidebar.caption(
+            f"{site.altitude_basis}. [Coordinate source]({site.source_url})"
+        )
+
+    return choice, lat, lon, alt
+
+
+a_choice, a_lat, a_lon, a_alt = location_inputs("a", "Site A", -89.5, 0.0, 0.0)
 
 compare_enabled = st.sidebar.checkbox(
     "Enable two-site comparison",
@@ -73,29 +129,7 @@ compare_enabled = st.sidebar.checkbox(
 
 if compare_enabled:
     st.sidebar.divider()
-    st.sidebar.header("Site B")
-
-    b_lat = st.sidebar.number_input(
-        "Site B latitude (°)",
-        min_value=-90.0,
-        max_value=90.0,
-        value=-89.5,
-        step=0.1,
-    )
-
-    b_lon = st.sidebar.number_input(
-        "Site B east longitude (°)",
-        min_value=-360.0,
-        max_value=360.0,
-        value=30.0,
-        step=0.1,
-    )
-
-    b_alt = st.sidebar.number_input(
-        "Site B altitude (km)",
-        value=0.0,
-        step=0.1,
-    )
+    b_choice, b_lat, b_lon, b_alt = location_inputs("b", "Site B", -89.5, 30.0, 0.0)
 
 # ---------------------------------------------------------
 # SIDEBAR: OBSERVATION PERIOD
@@ -156,9 +190,11 @@ if st.button("Analyse lunar location(s)", type="primary"):
     sites = {
         "Site A": (a_lat, a_lon, a_alt),
     }
+    choices = {"Site A": a_choice}
 
     if compare_enabled:
         sites["Site B"] = (b_lat, b_lon, b_alt)
+        choices["Site B"] = b_choice
 
     results = {}
 
@@ -194,6 +230,7 @@ if st.button("Analyse lunar location(s)", type="primary"):
 
             with column:
                 st.subheader(site_name)
+                st.write(f"Location: {site_label(choices[site_name])}")
                 st.write(
                     f"Latitude: {coordinates['lat_deg']:.2f}°"
                 )
@@ -434,7 +471,9 @@ st.write(
     guaranteed usable power. Earth above the horizon is geometric
     line of sight, not a guaranteed communications link.
 
-    Site coordinates are user-defined. The application does
-    not currently identify or certify viable landing sites.
+    Catalogue coordinates are taken from the source linked for each
+    site (planetocentric latitude, east longitude, altitude 0 km
+    assumed); custom coordinates are user-defined. The application
+    does not identify or certify viable landing sites.
     """
 )
